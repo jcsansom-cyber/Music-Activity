@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acoustix AI DAW - In-Browser Music Generator</title>
+    <meta name="description" content="Generate 5-second AI sound bites with MusicGen-Small directly in your browser and arrange them into a complete song using our multi-track DAW grid.">
+    <!-- Google Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-logo">
+                <span class="material-icons logo-icon">blur_on</span>
+                <h1>Acoustix <span>AI DAW</span></h1>
+            </div>
+            
+            <div class="global-controls">
+                <div class="playback-buttons">
+                    <button id="btn-play" class="control-btn" title="Play Composition">
+                        <span class="material-icons">play_arrow</span>
+                    </button>
+                    <button id="btn-pause" class="control-btn" title="Pause">
+                        <span class="material-icons">pause</span>
+                    </button>
+                    <button id="btn-stop" class="control-btn" title="Stop & Reset">
+                        <span class="material-icons">stop</span>
+                    </button>
+                    <button id="btn-loop" class="control-btn toggle-btn" title="Toggle Loop">
+                        <span class="material-icons">loop</span>
+                    </button>
+                </div>
+                
+                <div class="tempo-control">
+                    <label for="bpm-input">Project BPM</label>
+                    <input type="number" id="bpm-input" min="60" max="200" value="120">
+                </div>
+
+                <div class="snap-control">
+                    <label for="snap-select">Snap Grid</label>
+                    <select id="snap-select">
+                        <option value="beat">Grid Snap (Beats)</option>
+                        <option value="bar">Grid Snap (Bars)</option>
+                        <option value="0">Off (Free)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div id="engine-status" class="engine-status status-loading">
+                    <span class="status-indicator"></span>
+                    <span id="status-text">Initializing AI...</span>
+                </div>
+                <button id="btn-help" class="icon-btn" title="How to use">
+                    <span class="material-icons">help_outline</span>
+                </button>
+                <button id="btn-export" class="primary-btn" disabled>
+                    <span class="material-icons">download</span>
+                    Export Song
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="app-workspace">
+            
+            <!-- LEFT PANEL: AI GENERATOR & LIBRARY -->
+            <section class="workspace-panel generator-panel">
+                <div class="panel-header">
+                    <span class="material-icons">psychology</span>
+                    <h2>AI Loop Generator</h2>
+                </div>
+                
+                <!-- Model Download Progress (hidden by default) -->
+                <div id="model-progress-container" class="model-progress-container hidden">
+                    <div class="progress-details">
+                        <span id="progress-status">Downloading AI model (240MB)...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-wrapper">
+                        <div id="model-progress-bar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <p class="progress-notice">This happens once. The model is cached in your browser for next time.</p>
+                </div>
+
+                <!-- Structured Prompt Builder Form -->
+                <div class="generator-form">
+                    <div class="form-grid">
+                        <div class="input-wrapper">
+                            <label for="input-instrument">Instrument</label>
+                            <input type="text" id="input-instrument" placeholder="e.g. Drums, Bass, Synth" value="Drums">
+                            <div class="input-chips" data-target="input-instrument">
+                                <span>Drums</span>
+                                <span>Bass</span>
+                                <span>Pad</span>
+                                <span>Piano</span>
+                                <span>Guitar</span>
+                            </div>
+                        </div>
+
+                        <div class="input-wrapper">
+                            <label for="input-style">Style</label>
+                            <input type="text" id="input-style" placeholder="e.g. Lofi, Techno, Funk" value="Lofi Chill">
+                            <div class="input-chips" data-target="input-style">
+                                <span>Lofi</span>
+                                <span>Synthwave</span>
+                                <span>Techno</span>
+                                <span>Funk</span>
+                                <span>Ambient</span>
+                            </div>
+                        </div>
+
+                        <div class="input-wrapper">
+                            <label for="input-mood">Mood</label>
+                            <input type="text" id="input-mood" placeholder="e.g. Chill, Dark, Happy" value="Dreamy">
+                            <div class="input-chips" data-target="input-mood">
+                                <span>Dreamy</span>
+                                <span>Chill</span>
+                                <span>Energetic</span>
+                                <span>Dark</span>
+                                <span>Bright</span>
+                            </div>
+                        </div>
+
+                        <div class="input-wrapper">
+                            <label for="input-bpm">Loop BPM</label>
+                            <input type="number" id="input-bpm" min="60" max="200" value="120">
+                            <div class="input-chips-static">
+                                <span id="sync-bpm-btn" title="Sync with project BPM">Sync BPM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="btn-generate" class="generate-btn" disabled>
+                        <span class="material-icons btn-icon">sync</span>
+                        <span id="btn-generate-text">Load AI Engine First</span>
+                    </button>
+                </div>
+
+                <div class="library-section">
+                    <div class="library-header">
+                        <h3>Generated Loops</h3>
+                        <span id="library-count" class="badge">0</span>
+                    </div>
+                    
+                    <div id="library-empty" class="library-empty">
+                        <span class="material-icons empty-icon">graphic_eq</span>
+                        <p>No loops generated yet.</p>
+                        <p class="sub-text">Fill in the four settings above, then press <strong>Generate Loop</strong>. You can drag and repeat the loops on the right!</p>
+                    </div>
+
+                    <div id="library-list" class="library-list">
+                        <!-- Generated clips will be inserted here dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT PANEL: DAW TIMELINE -->
+            <section class="workspace-panel daw-panel">
+                <div class="timeline-ruler-wrapper">
+                    <div class="track-header-spacer"></div>
+                    <div class="timeline-ruler" id="timeline-ruler">
+                        <!-- Ruler ticks will be rendered here dynamically -->
+                    </div>
+                </div>
+
+                <div class="daw-grid" id="daw-grid">
+                    <!-- TRACK 1 -->
+                    <div class="daw-track-row" data-track-type="t1">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 1</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="0">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- TRACK 2 -->
+                    <div class="daw-track-row" data-track-type="t2">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 2</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="1">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- TRACK 3 -->
+                    <div class="daw-track-row" data-track-type="t3">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 3</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="2">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- TRACK 4 -->
+                    <div class="daw-track-row" data-track-type="t4">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 4</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="3">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- Playhead indicator -->
+                    <div id="playhead" class="daw-playhead" style="left: 180px;"></div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- HELP / TUTORIAL MODAL -->
+        <div id="help-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Welcome to Acoustix AI DAW! 🎧</h2>
+                    <button id="btn-close-help" class="icon-btn">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Acoustix is a browser-powered AI music generator. Here is how you can create your first song in 4 easy steps:</p>
+                    
+                    <div class="help-steps">
+                        <div class="step-card">
+                            <div class="step-number">1</div>
+                            <h3>Load the AI Engine</h3>
+                            <p>Wait for the AI Engine indicator in the header to turn green (<strong>AI Ready</strong>). The model will be cached in your browser for fast loading next time!</p>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">2</div>
+                            <h3>Design Loop Elements</h3>
+                            <p>Fill in the four properties (Instrument, Style, Mood, BPM) to define your loop, then press <strong>Generate Loop</strong>. The AI will output a perfect loop.</p>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">3</div>
+                            <h3>Arrange on the Timeline</h3>
+                            <p>Drag loops from your library into the tracks (Track 1 to Track 4). Drag a placed clip to move it, or grab either edge to trim or extend it with looped playback. Clips still snap to the grid based on your project tempo.</p>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">4</div>
+                            <h3>Listen and Export</h3>
+                            <p>Press the spacebar to play/pause, use <strong>M</strong> to mute a track, <strong>S</strong> to solo it, adjust volumes, toggle loop mode, and click <strong>Export Song</strong> to download your final WAV mixdown!</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btn-get-started" class="primary-btn">Let's Make Music!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Module App Script -->
+    <script type="module" src="app.js?v=transformers-4.2.0"></script>
+</body>
+</html>
