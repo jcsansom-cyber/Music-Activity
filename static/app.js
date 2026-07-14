@@ -9,6 +9,9 @@ let tokenizer = null;
 let model = null;
 let isAiLoading = false;
 let isGenerating = false;
+let generationStageTimer = null;
+let generationStageIndex = -1;
+let aiRuntimeLabel = 'musicgen-small';
 let isPlaying = false;
 let isLooping = false;
 let playheadPosition = 0; // Current time in seconds
@@ -23,17 +26,17 @@ let totalDuration = 80.0; // 16 clip-slots × 5s = 80s
 const pixelsPerSecond = 20; // Scale: 1 second = 20px, 5s clip = 100px
 const clipDuration = 5.0; // Target duration of loop in seconds
 const headerWidth = 180; // Width of the track-info panel in px (must match --header-width CSS var)
-const numTracks = 4;
+const numTracks = 8;
 const minClipDuration = 0.25;
 
 // Audio routing nodes
 let trackVolumeNodes = [];
-let trackMuteStates = [false, false, false, false];
-let trackSoloStates = [false, false, false, false];
+let trackMuteStates = Array(numTracks).fill(false);
+let trackSoloStates = Array(numTracks).fill(false);
 let masterGainNode = null;
 
 // Track settings
-const trackColors = ['#00f2fe', '#bd00ff', '#ff007f', '#ff9f00'];
+const trackColors = ['#00f2fe', '#bd00ff', '#ff007f', '#ff9f00', '#39e380', '#8ab4ff', '#ff6bcb', '#ffd200'];
 
 // Data Stores
 const libraryClips = []; // List of generated sound clips
@@ -61,6 +64,7 @@ const elProgressPercent = document.getElementById('progress-percent');
 const elProgressBar = document.getElementById('model-progress-bar');
 const elLibraryEmpty = document.getElementById('library-empty');
 const elLibraryList = document.getElementById('library-list');
+const elLibrarySection = document.querySelector('.library-section');
 const elLibraryCount = document.getElementById('library-count');
 const elRuler = document.getElementById('timeline-ruler');
 const elPlayhead = document.getElementById('playhead');
@@ -74,6 +78,12 @@ const elInputBpm = document.getElementById('input-bpm');
 const elSyncBpmBtn = document.getElementById('sync-bpm-btn');
 const elBtnGenerate = document.getElementById('btn-generate');
 const elBtnGenerateText = document.getElementById('btn-generate-text');
+const elGenerationInspector = document.getElementById('generation-inspector');
+const elGenerationRuntime = document.getElementById('generation-runtime');
+const elGenerationPrompt = document.getElementById('generation-prompt');
+const elGenerationResultTitle = document.getElementById('generation-result-title');
+const elGenerationResultMeta = document.getElementById('generation-result-meta');
+const elGenerationSteps = document.querySelectorAll('.generation-step');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
@@ -100,7 +110,7 @@ function ensureAudioContext() {
         masterGainNode.gain.value = 0.95; // Limit headroom
         masterGainNode.connect(audioCtx.destination);
 
-        // Create gain nodes for each of the 4 tracks
+        // Create gain nodes for each track lane.
         for (let i = 0; i < numTracks; i++) {
             const gainNode = audioCtx.createGain();
             gainNode.gain.value = 0.8; // Default volume
@@ -139,6 +149,110 @@ function updateTempoSettings() {
     
     // Adjust playhead position visually to match new scale (with header offset)
     elPlayhead.style.left = `${headerWidth + playheadPosition * pixelsPerSecond}px`;
+}
+
+function clearGenerationStageTimer() {
+    if (generationStageTimer) {
+        clearInterval(generationStageTimer);
+        generationStageTimer = null;
+    }
+}
+
+function updateGenerationInspectorState({ activeIndex = -1, completeThrough = -1, running = false, complete = false, promptText = null, runtimeText = null }) {
+    if (!elGenerationInspector) return;
+
+    elGenerationInspector.classList.toggle('is-running', running);
+    elGenerationInspector.classList.toggle('is-complete', complete);
+    elGenerationInspector.classList.toggle('is-idle', !running && !complete);
+
+    if (runtimeText && elGenerationRuntime) {
+        elGenerationRuntime.textContent = runtimeText;
+    }
+
+    if (promptText && elGenerationPrompt) {
+        elGenerationPrompt.textContent = promptText;
+    }
+
+    elGenerationSteps.forEach(step => {
+        const stepIndex = parseInt(step.getAttribute('data-generation-step'), 10);
+        step.classList.toggle('is-active', stepIndex === activeIndex);
+        step.classList.toggle('is-complete', stepIndex <= completeThrough);
+    });
+}
+
+function startGenerationInspector(promptText) {
+    clearGenerationStageTimer();
+    generationStageIndex = 0;
+
+    updateGenerationInspectorState({
+        activeIndex: 0,
+        completeThrough: -1,
+        running: true,
+        promptText,
+        runtimeText: aiRuntimeLabel,
+    });
+
+    generationStageTimer = setInterval(() => {
+        if (generationStageIndex < 2) {
+            generationStageIndex += 1;
+            updateGenerationInspectorState({
+                activeIndex: generationStageIndex,
+                completeThrough: generationStageIndex - 1,
+                running: true,
+                promptText,
+                runtimeText: aiRuntimeLabel,
+            });
+        }
+    }, 1200);
+}
+
+function finishGenerationInspector(success = true, clip = null) {
+    clearGenerationStageTimer();
+    generationStageIndex = -1;
+
+    if (!success) {
+        updateGenerationInspectorState({
+            activeIndex: -1,
+            completeThrough: -1,
+            running: false,
+            complete: false,
+            promptText: 'Generation failed before the loop could be polished.',
+            runtimeText: aiRuntimeLabel,
+        });
+        if (elGenerationResultTitle) elGenerationResultTitle.textContent = 'Generation failed';
+        if (elGenerationResultMeta) elGenerationResultMeta.textContent = 'Try again after checking the model connection.';
+        return;
+    }
+
+    updateGenerationInspectorState({
+        activeIndex: 3,
+        completeThrough: 3,
+        running: false,
+        complete: true,
+        promptText: 'Rendered prompt, sampled audio, and crossfaded the clip into a 5.0 second loop.',
+        runtimeText: aiRuntimeLabel,
+    });
+    if (elGenerationResultTitle) {
+        elGenerationResultTitle.textContent = clip ? clip.prompt : 'Loop generated successfully';
+    }
+    if (elGenerationResultMeta) {
+        elGenerationResultMeta.textContent = clip ? `Saved to library as ${clip.id}.` : 'Saved to library and ready to drag into the timeline.';
+    }
+}
+
+function resetGenerationInspector() {
+    clearGenerationStageTimer();
+    generationStageIndex = -1;
+    updateGenerationInspectorState({
+        activeIndex: -1,
+        completeThrough: -1,
+        running: false,
+        complete: false,
+        promptText: 'Waiting for a loop request.',
+        runtimeText: aiRuntimeLabel,
+    });
+    if (elGenerationResultTitle) elGenerationResultTitle.textContent = 'Waiting for a loop request.';
+    if (elGenerationResultMeta) elGenerationResultMeta.textContent = 'Your generated clip will appear here when it finishes.';
 }
 
 function clamp(value, min, max) {
@@ -398,6 +512,7 @@ async function loadAIModel() {
             progress_callback: progressCallback,
             dtype: 'fp32',
         });
+        aiRuntimeLabel = 'musicgen-small / WebGPU';
         
         elEngineStatus.className = 'engine-status status-ready';
         elStatusText.textContent = 'AI Ready (GPU)';
@@ -412,6 +527,7 @@ async function loadAIModel() {
                 progress_callback: progressCallback,
                 dtype: 'fp32',
             });
+            aiRuntimeLabel = 'musicgen-small / CPU';
             elEngineStatus.className = 'engine-status status-ready';
             elStatusText.textContent = 'AI Ready (CPU)';
             console.log("WASM CPU Model loaded successfully.");
@@ -427,6 +543,16 @@ async function loadAIModel() {
         if (model) {
             elBtnGenerate.disabled = false;
             elBtnGenerateText.textContent = 'Generate Loop';
+            resetGenerationInspector();
+        } else if (elGenerationInspector) {
+            updateGenerationInspectorState({
+                activeIndex: -1,
+                completeThrough: -1,
+                running: false,
+                complete: false,
+                promptText: 'The AI engine did not finish loading.',
+                runtimeText: aiRuntimeLabel,
+            });
         }
         updateExportButtonState();
     }
@@ -452,6 +578,7 @@ async function generateSoundBite() {
     const prompt = `${instrument} solo only, no other instruments, no accompaniment, no vocals, ${style}, ${mood} mood, ${bpm} bpm, seamless perfect loop, high quality`;
     const generationTake = createGenerationTake();
     const generationPrompt = `${prompt}, take ${generationTake}`;
+    const inspectorPrompt = `Prompt: ${instrument}, ${style}, ${mood}, ${bpm} BPM. MusicGen-Small will turn this into a 5 second loop.`;
     
     isGenerating = true;
     elBtnGenerate.disabled = true;
@@ -460,6 +587,7 @@ async function generateSoundBite() {
     elStatusText.textContent = 'Generating Audio...';
     
     elBtnGenerate.style.animation = 'pulse 1s infinite alternate';
+    startGenerationInspector(inspectorPrompt);
 
     try {
         console.log(`Generating music for prompt: "${generationPrompt}"`);
@@ -516,15 +644,24 @@ async function generateSoundBite() {
         addClipToLibraryUI(newClip);
         updateLibraryUIState();
         
-        // Auto scroll to the new clip in the library
+        // Auto scroll to the library and then the new clip.
         const elNewClipCard = document.getElementById(clipId);
         if (elNewClipCard) {
-            elNewClipCard.scrollIntoView({ behavior: 'smooth' });
+            requestAnimationFrame(() => {
+                elLibrarySection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                elLibraryList.scrollTop = elLibraryList.scrollHeight;
+                elNewClipCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    elNewClipCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 250);
+            });
         }
+        finishGenerationInspector(true, newClip);
         
     } catch (err) {
         console.error("Audio generation failed:", err);
         alert(`Generation failed: ${err.message || err}`);
+        finishGenerationInspector(false);
     } finally {
         isGenerating = false;
         elBtnGenerate.disabled = false;
@@ -942,9 +1079,11 @@ function updateLibraryUIState() {
     if (count > 0) {
         elLibraryEmpty.style.display = 'none';
         elLibraryList.style.display = 'flex';
+        elLibrarySection?.classList.add('has-content');
     } else {
         elLibraryEmpty.style.display = 'flex';
         elLibraryList.style.display = 'none';
+        elLibrarySection?.classList.remove('has-content');
     }
 }
 
@@ -1048,6 +1187,10 @@ function addClipToLibraryUI(clip) {
     });
 
     elLibraryList.appendChild(card);
+    requestAnimationFrame(() => {
+        card.classList.add('is-new');
+        setTimeout(() => card.classList.remove('is-new'), 1200);
+    });
 }
 
 // Waveform drawing

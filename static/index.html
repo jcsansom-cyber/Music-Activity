@@ -159,6 +159,49 @@
                         <!-- Generated clips will be inserted here dynamically -->
                     </div>
                 </div>
+
+                    <div id="generation-inspector" class="generation-inspector" aria-live="polite">
+                        <div class="generation-inspector-header">
+                            <span class="generation-inspector-title">
+                                <span class="material-icons">visibility</span>
+                                Under the hood
+                            </span>
+                            <span id="generation-runtime" class="generation-runtime">musicgen-small</span>
+                        </div>
+                        <div id="generation-prompt" class="generation-prompt">
+                            Waiting for a loop request.
+                        </div>
+                        <div class="generation-stages" role="list" aria-label="Generation stages">
+                            <div class="generation-step" data-generation-step="0" role="listitem">
+                                <span class="generation-step-dot"></span>
+                                <span>Build prompt</span>
+                            </div>
+                            <div class="generation-step" data-generation-step="1" role="listitem">
+                                <span class="generation-step-dot"></span>
+                                <span>Tokenize text</span>
+                            </div>
+                            <div class="generation-step" data-generation-step="2" role="listitem">
+                                <span class="generation-step-dot"></span>
+                                <span>Sample audio</span>
+                            </div>
+                            <div class="generation-step" data-generation-step="3" role="listitem">
+                                <span class="generation-step-dot"></span>
+                                <span>Polish loop</span>
+                            </div>
+                        </div>
+                        <div class="generation-meter" aria-hidden="true">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div class="generation-result" aria-live="polite">
+                            <div class="generation-result-label">Latest result</div>
+                            <div id="generation-result-title" class="generation-result-title">Waiting for a loop request.</div>
+                            <div id="generation-result-meta" class="generation-result-meta">Your generated clip will appear here when it finishes.</div>
+                        </div>
+                    </div>
             </section>
 
             <!-- RIGHT PANEL: DAW TIMELINE -->
@@ -239,6 +282,74 @@
                         </div>
                     </div>
 
+                    <!-- TRACK 5 -->
+                    <div class="daw-track-row" data-track-type="t5">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 5</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="4">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- TRACK 6 -->
+                    <div class="daw-track-row" data-track-type="t6">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 6</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="5">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- TRACK 7 -->
+                    <div class="daw-track-row" data-track-type="t7">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 7</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="6">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
+                    <!-- TRACK 8 -->
+                    <div class="daw-track-row" data-track-type="t8">
+                        <div class="track-info">
+                            <div class="track-title-wrapper">
+                                <span class="track-title">Track 8</span>
+                            </div>
+                            <div class="track-controls">
+                                <button class="track-btn mute-btn" title="Mute">M</button>
+                                <button class="track-btn solo-btn" title="Solo">S</button>
+                                <input type="range" class="track-volume" min="0" max="1" step="0.05" value="0.8" title="Volume">
+                            </div>
+                        </div>
+                        <div class="track-lane" data-track-id="7">
+                            <!-- Placed clips will sit here -->
+                        </div>
+                    </div>
+
                     <!-- Playhead indicator -->
                     <div id="playhead" class="daw-playhead" style="left: 180px;"></div>
                 </div>
@@ -272,7 +383,7 @@
                         <div class="step-card">
                             <div class="step-number">3</div>
                             <h3>Arrange on the Timeline</h3>
-                            <p>Drag loops from your library into the tracks (Track 1 to Track 4). Drag a placed clip to move it, or grab either edge to trim or extend it with looped playback. Clips still snap to the grid based on your project tempo.</p>
+                            <p>Drag loops from your library into the tracks (Track 1 to Track 8). Drag a placed clip to move it, or grab either edge to trim or extend it with looped playback. Clips still snap to the grid based on your project tempo.</p>
                         </div>
                         <div class="step-card">
                             <div class="step-number">4</div>
