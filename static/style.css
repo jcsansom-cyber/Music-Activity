@@ -705,6 +705,42 @@ body, html {
     line-height: 1.4;
 }
 
+.model-attribution {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.model-attribution-label {
+    font-family: var(--font-tech);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--clr-text-muted);
+    margin-bottom: 6px;
+}
+
+.model-attribution p,
+.attribution-card p {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--clr-text-muted);
+    margin-bottom: 0;
+}
+
+.model-attribution a,
+.attribution-card a {
+    color: var(--clr-drums);
+    text-decoration: none;
+}
+
+.model-attribution a:hover,
+.attribution-card a:hover {
+    text-decoration: underline;
+}
+
 .generation-inspector.is-complete .generation-result {
     border-color: rgba(57, 227, 128, 0.18);
     background: rgba(57, 227, 128, 0.06);
@@ -1410,6 +1446,20 @@ body, html {
     color: var(--clr-text-muted);
     line-height: 1.5;
     margin-bottom: 0;
+}
+
+.attribution-card {
+    margin-top: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 18px 20px;
+}
+
+.attribution-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
 }
 
 .modal-footer {
