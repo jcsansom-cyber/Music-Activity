@@ -18,6 +18,7 @@ let playheadPosition = 0; // Current time in seconds
 let playStartTime = 0; // AudioContext currentTime when playback started
 let pauseOffset = 0; // Time in seconds where we paused
 let animationFrameId = null;
+let activePlayheadGesture = null;
 
 // Timeline parameters (scaled dynamically by BPM)
 let secondsPerBeat = 0.5; // 120 BPM default
@@ -259,6 +260,14 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
+function getPlaybackEndTime() {
+    const lastClipEnd = placedClips.reduce((maxEnd, placement) => {
+        return Math.max(maxEnd, placement.startTime + placement.duration);
+    }, 0);
+
+    return Math.max(clipDuration, lastClipEnd);
+}
+
 function getSnapUnitSeconds() {
     const snapMode = elSnapSelect.value;
 
@@ -312,6 +321,19 @@ function updatePlacedClipElement(placement, clipBox) {
     clipBox.setAttribute('data-track-id', placement.trackId);
 }
 
+function setPlayheadPosition(timeInSeconds) {
+    playheadPosition = clamp(timeInSeconds, 0, totalDuration);
+    pauseOffset = playheadPosition;
+    elPlayhead.style.left = `${headerWidth + playheadPosition * pixelsPerSecond}px`;
+}
+
+function getTimeFromClientX(clientX) {
+    const elDawGrid = document.getElementById('daw-grid');
+    const rect = elRuler.getBoundingClientRect();
+    const clickX = clientX - rect.left + elDawGrid.scrollLeft;
+    return clickX / pixelsPerSecond;
+}
+
 function redrawPlacedClipWaveform(placement) {
     const clip = getClipByPlacement(placement);
     const clipBox = document.getElementById(placement.id);
@@ -356,6 +378,59 @@ function beginPlacedClipGesture(e, placementId, mode, resizeSide = null) {
     };
 
     clipBox.classList.add(mode === 'move' ? 'dragging' : 'resizing');
+}
+
+function beginPlayheadGesture(e) {
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const wasPlaying = isPlaying;
+    if (wasPlaying) {
+        pausePlayback();
+    }
+
+    activePlayheadGesture = {
+        pointerId: e.pointerId,
+        wasPlaying,
+    };
+
+    try {
+        elPlayhead.setPointerCapture(e.pointerId);
+    } catch (err) {
+        // Pointer capture is best-effort; window listeners keep the drag working.
+    }
+
+    updatePlayheadGesturePosition(e);
+}
+
+function updatePlayheadGesturePosition(e) {
+    const nextTime = clamp(getTimeFromClientX(e.clientX), 0, totalDuration);
+    setPlayheadPosition(nextTime);
+}
+
+function updatePlayheadGesture(e) {
+    if (!activePlayheadGesture || e.pointerId !== activePlayheadGesture.pointerId) return;
+    e.preventDefault();
+    updatePlayheadGesturePosition(e);
+}
+
+function finishPlayheadGesture(e) {
+    if (!activePlayheadGesture || e.pointerId !== activePlayheadGesture.pointerId) return;
+
+    const { wasPlaying } = activePlayheadGesture;
+    activePlayheadGesture = null;
+
+    try {
+        elPlayhead.releasePointerCapture(e.pointerId);
+    } catch (err) {
+        // Ignore release errors if the pointer capture has already ended.
+    }
+
+    if (wasPlaying) {
+        startPlayback();
+    }
 }
 
 function updatePlacedClipGesture(e) {
@@ -875,6 +950,9 @@ function setupUIEventListeners() {
     window.addEventListener('pointermove', updatePlacedClipGesture);
     window.addEventListener('pointerup', finishPlacedClipGesture);
     window.addEventListener('pointercancel', finishPlacedClipGesture);
+    window.addEventListener('pointermove', updatePlayheadGesture);
+    window.addEventListener('pointerup', finishPlayheadGesture);
+    window.addEventListener('pointercancel', finishPlayheadGesture);
 
     // Export button
     elBtnExport.addEventListener('click', exportComposition);
@@ -942,15 +1020,10 @@ function setupUIEventListeners() {
 
     // Seek timeline click listener (ruler)
     elRuler.addEventListener('click', (e) => {
-        const elDawGrid = document.getElementById('daw-grid');
-        const rect = elRuler.getBoundingClientRect();
-        // Add scrollLeft because ruler is visually shifted but click coords are unshifted
-        const clickX = e.clientX - rect.left + elDawGrid.scrollLeft;
-        let newTime = clickX / pixelsPerSecond;
-        if (newTime < 0) newTime = 0;
-        if (newTime > totalDuration) newTime = totalDuration;
-        seekPlayback(newTime);
+        seekPlayback(getTimeFromClientX(e.clientX));
     });
+
+    elPlayhead.addEventListener('pointerdown', beginPlayheadGesture);
 
     // Sync ruler horizontal scroll with daw-grid scroll
     const elDawGrid = document.getElementById('daw-grid');
@@ -1420,8 +1493,7 @@ function stopPlayback() {
     elBtnPlay.classList.remove('active');
     
     pauseOffset = 0;
-    playheadPosition = 0;
-    elPlayhead.style.left = `${headerWidth}px`;
+    setPlayheadPosition(0);
     
     cancelAnimationFrame(animationFrameId);
     stopActiveSources();
@@ -1430,14 +1502,11 @@ function stopPlayback() {
 function seekPlayback(newTime) {
     const wasPlaying = isPlaying;
     
-    if (isPlaying) {
-        stopActiveSources();
-        isPlaying = false;
+    if (wasPlaying) {
+        pausePlayback();
     }
     
-    pauseOffset = newTime;
-    playheadPosition = newTime;
-    elPlayhead.style.left = `${headerWidth + newTime * pixelsPerSecond}px`;
+    setPlayheadPosition(newTime);
     
     if (wasPlaying) {
         startPlayback();
@@ -1497,8 +1566,9 @@ function runPlayheadAnimation() {
     
     const elapsed = audioCtx.currentTime - playStartTime;
     playheadPosition = pauseOffset + elapsed;
+    const playbackEndTime = getPlaybackEndTime();
     
-    if (playheadPosition >= totalDuration) {
+    if (playheadPosition >= playbackEndTime) {
         if (isLooping) {
             stopActiveSources();
             playStartTime = audioCtx.currentTime;
