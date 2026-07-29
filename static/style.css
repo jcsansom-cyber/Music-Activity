@@ -1269,23 +1269,39 @@ body, html {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 2px;
-    background-color: #ffe600;
+    width: 18px;
+    background: transparent;
     z-index: 100;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+    transform: translateX(-50%);
+}
+
+.daw-playhead::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 100%;
+    background-color: #ffe600;
     box-shadow: 0 0 8px #ffe600;
+    transform: translateX(-50%);
 }
 
 .daw-playhead::after {
     content: '';
     position: absolute;
     top: 0;
-    left: -4px;
+    left: 50%;
     width: 10px;
     height: 10px;
     background-color: #ffe600;
     border-radius: 50%;
     box-shadow: 0 0 12px #ffe600;
+    transform: translateX(-50%);
 }
 
 /* MODAL / TUTORIAL POPUP */
