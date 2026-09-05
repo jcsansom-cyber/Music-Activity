@@ -576,6 +576,12 @@ async function loadAIModel() {
     };
 
     const model_id = 'Xenova/musicgen-small';
+    // Use the model card's smaller browser-friendly configuration.
+    const musicgenDtype = {
+        text_encoder: 'q8',
+        decoder_model_merged: 'q8',
+        encodec_decode: 'fp32',
+    };
     try {
         console.log("Attempting to load AutoTokenizer and MusicgenForConditionalGeneration...");
         tokenizer = await AutoTokenizer.from_pretrained(model_id);
@@ -585,7 +591,7 @@ async function loadAIModel() {
         model = await MusicgenForConditionalGeneration.from_pretrained(model_id, {
             device: 'webgpu',
             progress_callback: progressCallback,
-            dtype: 'fp32',
+            dtype: musicgenDtype,
         });
         aiRuntimeLabel = 'musicgen-small / WebGPU';
         
@@ -600,7 +606,7 @@ async function loadAIModel() {
             model = await MusicgenForConditionalGeneration.from_pretrained(model_id, {
                 device: 'wasm',
                 progress_callback: progressCallback,
-                dtype: 'fp32',
+                dtype: musicgenDtype,
             });
             aiRuntimeLabel = 'musicgen-small / CPU';
             elEngineStatus.className = 'engine-status status-ready';
